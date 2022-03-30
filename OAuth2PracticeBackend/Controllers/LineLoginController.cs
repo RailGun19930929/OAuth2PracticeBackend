@@ -13,6 +13,9 @@ namespace OAuth2PracticeBackend.Controllers
     [Produces("application/json")]
     public class LineLoginController : ControllerBase
     {
+        private static Dictionary<string, TimeStamp<LineProfileResponse>> _profile_records =
+            new Dictionary<string, TimeStamp<LineProfileResponse>>();
+
         [Route("Authorize")]
         [HttpGet]
         public IActionResult Authorize()
@@ -46,7 +49,7 @@ namespace OAuth2PracticeBackend.Controllers
                 var code = HttpContext.Request.Form["code"].ToString();
                 var state = HttpContext.Request.Form["state"].ToString();
 
-                return Token(new LineLoginTokenParam
+                return Token(new LineLoginTokenRequest
                 {
                     code = code
                 });
@@ -59,11 +62,11 @@ namespace OAuth2PracticeBackend.Controllers
 
         [Route("Token")]
         [HttpPost]
-        public IActionResult Token([FromBody] LineLoginTokenParam loginTokenParam)
+        public IActionResult Token([FromBody] LineLoginTokenRequest request)
         {
             try
             {
-                var code = loginTokenParam.code;
+                var code = request.code;
                 //var state = HttpContext.Request.Form["state"].ToString();
 
                 using (var client = new HttpClient())
@@ -83,8 +86,12 @@ namespace OAuth2PracticeBackend.Controllers
                     var result = response.Content.ReadFromJsonAsync<LineLoginTokenResponse>().Result;
                     if (response.IsSuccessStatusCode)
                     {
-                        return Ok(result);
-                    } else
+                        return Profile(new LineProfileRequest
+                        {
+                            token = result.access_token
+                        });
+                    }
+                    else
                     {
                         return BadRequest(result);
                     }
@@ -95,6 +102,71 @@ namespace OAuth2PracticeBackend.Controllers
             {
                 return BadRequest(ex.Message);
             }
+        }
+
+        [Route("Profile")]
+        [HttpPost]
+        public IActionResult Profile([FromBody] LineProfileRequest request)
+        {
+            try
+            {
+                var token = request.token;
+                //var state = HttpContext.Request.Form["state"].ToString();
+
+                using (var client = new HttpClient())
+                {
+                    var uri = Config.getLineProfileUrl();
+                    client.DefaultRequestHeaders.Clear();
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                    var response = client.GetAsync(uri).GetAwaiter().GetResult();
+                    var result = response.Content.ReadFromJsonAsync<LineProfileResponse>().Result;
+                    if (response.IsSuccessStatusCode)
+                    {
+                        SaveProfile(result.userId, new TimeStamp<LineProfileResponse>(result));
+                        return Redirect("http://localhost:4200/resume?user_id=" + result.userId);
+                    }
+                    else
+                    {
+                        return BadRequest(result);
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [Route("GetProfileProfile")]
+        [HttpGet]
+        public IActionResult GetProfile(string key)
+        {
+            try
+            {
+                bool hasRecord = _profile_records.TryGetValue(key, out TimeStamp<LineProfileResponse> result);
+                if (!hasRecord)
+                {
+                    return NotFound();
+                }
+                return Ok(result.data);
+
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        private void SaveProfile(string key, TimeStamp<LineProfileResponse> profile)
+        {
+            _profile_records.Add(key, profile);
+        }
+
+        private void clearExpiredProfileRecords()
+        {
+
         }
     }
 }

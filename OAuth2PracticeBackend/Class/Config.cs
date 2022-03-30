@@ -4,6 +4,7 @@
     {
         private static OAuthInfo _loginInfo;
         private static OAuthInfo _notifyInfo;
+        private static string _line_profile_url;
         public Config()
         {
         }
@@ -24,6 +25,7 @@
                 ClientId = configurationManager.GetValue<string>("LineNotify:ClientId"),
                 ClientSecret = configurationManager.GetValue<string>("LineNotify:ClientSecret")
             };
+            _line_profile_url = configurationManager.GetValue<string>("LineApi:ProfileUrl");
         }
 
         public static OAuthInfo getLineLoginInfo()
@@ -34,6 +36,11 @@
         public static OAuthInfo getLineNotifyInfo()
         {
             return _notifyInfo;
+        }
+
+        public static string getLineProfileUrl()
+        {
+            return _line_profile_url;
         }
     }
 }

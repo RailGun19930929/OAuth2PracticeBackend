@@ -1,6 +1,6 @@
 ﻿namespace OAuth2PracticeBackend.Class
 {
-    public class LineLoginTokenParam
+    public class LineLoginTokenRequest
     {
         public string code { get; set; }
     }
